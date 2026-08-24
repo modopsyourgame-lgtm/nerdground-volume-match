@@ -182,6 +182,9 @@
     <button id="submit">완료</button>
     <button id="next" class="ghost">새 색 뽑기</button>
   </div>
+  <div class="row">
+    <button id="sound" class="ghost" type="button" aria-pressed="false" disabled>소리 5초 듣기</button>
+  </div>
 
   <section class="meter">
     <div class="meter-top">
@@ -200,11 +203,12 @@
   const targetEl=$('target'), mineEl=$('mine'), gapEl=$('gap');
   const rEl=$('r'), gEl=$('g'), bEl=$('b');
   const scoreEl=$('score'), fillEl=$('fill'), noteEl=$('note'), hintEl=$('hint'), roundEl=$('round');
+  const soundBtn=$('sound');
 
   let target={r:0,g:0,b:0}, volume=0, round=0, counting=false;
 
   /* ---------- audio ---------- */
-  let ctx=null, master=null, timer=null;
+  let ctx=null, master=null, timer=null, soundTimer=null, scoreTimer=null, soundPlaying=false;
   const CAP=0.22;
   const SCALE=[0,3,7,10,12,15,19,22];
   let step=0;
@@ -232,14 +236,39 @@
     osc.connect(env); env.connect(master);
     osc.start(t); osc.stop(t+0.55);
   }
+  function updateSoundButton(){
+    soundBtn.textContent = soundPlaying ? '소리 끄기' : '소리 5초 듣기';
+    soundBtn.disabled = volume <= 0;
+    soundBtn.setAttribute('aria-pressed', String(soundPlaying));
+  }
+  function applyGain(v){
+    if(!ctx || !master) return;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+    master.gain.linearRampToValueAtTime(v, ctx.currentTime+0.05);
+  }
+  function stopSound(){
+    if(soundTimer){ clearTimeout(soundTimer); soundTimer=null; }
+    soundPlaying = false;
+    applyGain(0);
+    updateSoundButton();
+  }
+  function playSoundFor(ms){
+    if(volume <= 0) return;
+    ensureAudio();
+    if(ctx.state === 'suspended') ctx.resume();
+    if(soundTimer) clearTimeout(soundTimer);
+    soundPlaying = true;
+    applyGain((volume/100)*CAP);
+    updateSoundButton();
+    soundTimer = setTimeout(stopSound, ms);
+  }
   function setVolume(v){
     volume = v;
-    if(ctx){
-      master.gain.cancelScheduledValues(ctx.currentTime);
-      master.gain.linearRampToValueAtTime((v/100)*CAP, ctx.currentTime+0.25);
-    }
+    if(soundPlaying) applyGain((v/100)*CAP);
     fillEl.style.width = v + '%';
     hintEl.textContent = v === 0 ? '아직 소리 없음' : v + ' / 100';
+    updateSoundButton();
   }
 
   /* ---------- color ---------- */
@@ -257,6 +286,11 @@
   }
 
   function newTarget(){
+    if(scoreTimer){ clearInterval(scoreTimer); scoreTimer=null; }
+    counting = false;
+    stopSound();
+    setVolume(0);
+    scoreEl.textContent = '00';
     round++;
     roundEl.textContent = '시도 ' + String(round).padStart(2,'0');
     target = {r:randByte(), g:randByte(), b:randByte()};
@@ -272,6 +306,7 @@
 
   function submit(){
     if(counting) return;
+    stopSound();
     ensureAudio();
     if(ctx.state === 'suspended') ctx.resume();
     const mine = read();
@@ -285,16 +320,29 @@
   }
 
   function countTo(final){
+    if(scoreTimer) clearInterval(scoreTimer);
     counting = true;
     let shown = 0;
     const stepMs = 18;
-    const tick = setInterval(() => {
+    scoreTimer = setInterval(() => {
       shown += Math.max(1, Math.ceil((final - shown)/6));
-      if(shown >= final){ shown = final; clearInterval(tick); counting = false; finish(final); }
+      if(shown >= final){
+        shown = final;
+        clearInterval(scoreTimer);
+        scoreTimer = null;
+        counting = false;
+        finish(final);
+      }
       scoreEl.textContent = String(shown).padStart(2,'0');
       fillEl.style.width = shown + '%';
     }, stepMs);
-    if(final === 0){ clearInterval(tick); counting=false; scoreEl.textContent='00'; finish(0); }
+    if(final === 0){
+      clearInterval(scoreTimer);
+      scoreTimer=null;
+      counting=false;
+      scoreEl.textContent='00';
+      finish(0);
+    }
   }
 
   function finish(s){
@@ -305,6 +353,7 @@
     else if(s >= 45) noteEl.textContent = '들리긴 합니다. 조금 더 붙여보세요.';
     else if(s >= 15) noteEl.textContent = '아주 작게 납니다. 어느 채널이 어긋났는지 보세요.';
     else noteEl.textContent = '거의 무음입니다. 다시 섞어보세요.';
+    if(s > 0) playSoundFor(10000);
   }
 
   const ranges = {r:$('r-range'), g:$('g-range'), b:$('b-range')};
@@ -349,6 +398,10 @@
 
   $('submit').addEventListener('click', submit);
   $('next').addEventListener('click', () => { newTarget(); preview(); });
+  soundBtn.addEventListener('click', () => {
+    if(soundPlaying) stopSound();
+    else playSoundFor(5000);
+  });
 
   newTarget();
   sync();
