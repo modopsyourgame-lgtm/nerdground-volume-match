@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>색을 맞춰야 소리가 납니다</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400;0,62..125,600;0,62..125,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14150F;
+    --panel:#D8DAD1;
+    --panel-2:#C7CAC0;
+    --rule:#9A9C90;
+    --dim:#6E7166;
+    --chip: #808080;
+    --seam: 40px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--panel);
+    color:var(--ink);
+    font-family:"Archivo",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    font-variation-settings:"wdth" 100;
+    display:flex;justify-content:center;
+    padding:28px 20px 48px;
+  }
+  .sheet{width:100%;max-width:560px}
+
+  /* header */
+  header{
+    display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1.5px solid var(--ink);padding-bottom:8px;
+  }
+  .eyebrow{
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim);
+  }
+  h1{
+    font-size:clamp(22px,6.2vw,32px);font-weight:800;
+    font-variation-settings:"wdth" 112;letter-spacing:-.02em;line-height:1.05;
+    margin-top:14px;
+  }
+  .sub{margin-top:8px;color:var(--dim);font-size:14px;line-height:1.5;max-width:38ch}
+
+  /* the chip */
+  .chip{
+    margin-top:26px;position:relative;
+    height:clamp(180px,44vw,240px);
+    display:flex;background:var(--ink);
+    border:1.5px solid var(--ink);
+  }
+  .half{flex:1;transition:background-color .18s linear}
+  .gap{width:var(--seam);background:var(--panel);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+  .chip figcaption{
+    position:absolute;left:0;right:0;bottom:-22px;
+    display:flex;justify-content:space-between;
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--dim);
+  }
+
+  /* inputs */
+  .modes{margin-top:46px;display:flex;gap:0;border:1.5px solid var(--ink);width:fit-content}
+  .mode{
+    flex:none;background:transparent;color:var(--ink);border:0;
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;padding:8px 14px;
+  }
+  .mode + .mode{border-left:1.5px solid var(--ink)}
+  .mode.on{background:var(--ink);color:var(--panel)}
+
+  .mixer{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .field label{
+    display:block;font-family:"Space Mono",monospace;font-size:11px;
+    letter-spacing:.14em;color:var(--dim);margin-bottom:6px;
+  }
+  .field input[type=number]{
+    width:100%;background:var(--panel-2);border:1.5px solid var(--ink);
+    color:var(--ink);font-family:"Space Mono",monospace;font-size:26px;font-weight:700;
+    text-align:center;padding:12px 6px;-moz-appearance:textfield;
+  }
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .field input:focus{outline:3px solid var(--ink);outline-offset:2px}
+
+  /* drag mode */
+  .slot{display:none;background:var(--panel-2);border:1.5px solid var(--ink);padding:12px 10px}
+  .slot output{
+    display:block;text-align:center;font-family:"Space Mono",monospace;
+    font-size:26px;font-weight:700;line-height:1;
+  }
+  .range{
+    -webkit-appearance:none;appearance:none;width:100%;margin-top:12px;
+    background:transparent;height:20px;cursor:ew-resize;
+  }
+  .range::-webkit-slider-runnable-track{height:2px;background:var(--ink)}
+  .range::-moz-range-track{height:2px;background:var(--ink)}
+  .range::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:20px;margin-top:-9px;
+    background:var(--ink);border:0;border-radius:0;
+  }
+  .range::-moz-range-thumb{width:14px;height:20px;background:var(--ink);border:0;border-radius:0}
+  .range:focus-visible{outline:3px solid var(--ink);outline-offset:4px}
+  body.drag .field input[type=number]{display:none}
+  body.drag .slot{display:block}
+
+  .row{margin-top:12px;display:flex;gap:10px}
+  button{
+    flex:1;font-family:"Archivo",sans-serif;font-weight:600;font-size:14px;
+    letter-spacing:.02em;padding:14px;cursor:pointer;
+    background:var(--ink);color:var(--panel);border:1.5px solid var(--ink);
+  }
+  button.ghost{background:transparent;color:var(--ink)}
+  button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+  button:disabled{opacity:.35;cursor:not-allowed}
+
+  /* volume readout */
+  .meter{margin-top:34px;border-top:1.5px solid var(--ink);padding-top:14px}
+  .meter-top{display:flex;justify-content:space-between;align-items:flex-end}
+  .meter-top span{
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--dim);
+  }
+  .value{
+    font-family:"Space Mono",monospace;font-weight:700;
+    font-size:clamp(44px,14vw,72px);line-height:.9;letter-spacing:-.03em;
+  }
+  .bar{margin-top:12px;height:14px;border:1.5px solid var(--ink);padding:2px}
+  .bar i{display:block;height:100%;width:0%;background:var(--ink);transition:width .4s linear}
+  .note{
+    margin-top:10px;font-size:13px;color:var(--dim);line-height:1.5;min-height:2.6em;
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important}
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <header>
+    <span class="eyebrow">Volume&nbsp;/&nbsp;RGB</span>
+    <span class="eyebrow" id="round">시도 00</span>
+  </header>
+
+  <h1>색을 맞춰야<br>소리가 납니다</h1>
+  <p class="sub">왼쪽 색과 똑같아지도록 R·G·B 값을 입력하세요. 오른쪽 색이 바로 바뀝니다. 비슷해졌다 싶으면 완료를 누르세요.</p>
+
+  <figure class="chip" id="chip">
+    <div class="half" id="target"></div>
+    <div class="gap" id="gap"></div>
+    <div class="half" id="mine"></div>
+    <figcaption><em style="font-style:normal">목표 색</em><em style="font-style:normal">내가 섞은 색</em></figcaption>
+  </figure>
+
+  <div class="modes" role="group" aria-label="입력 방식">
+    <button type="button" class="mode on" id="mode-num" aria-pressed="true">숫자 입력</button>
+    <button type="button" class="mode" id="mode-drag" aria-pressed="false">드래그</button>
+  </div>
+
+  <div class="mixer" id="mixer">
+    <div class="field">
+      <label for="r">R</label>
+      <input id="r" type="number" min="0" max="255" value="0" inputmode="numeric">
+      <div class="slot"><output id="r-out">0</output><input id="r-range" class="range" type="range" min="0" max="255" value="0" aria-label="R 값 드래그"></div>
+    </div>
+    <div class="field">
+      <label for="g">G</label>
+      <input id="g" type="number" min="0" max="255" value="0" inputmode="numeric">
+      <div class="slot"><output id="g-out">0</output><input id="g-range" class="range" type="range" min="0" max="255" value="0" aria-label="G 값 드래그"></div>
+    </div>
+    <div class="field">
+      <label for="b">B</label>
+      <input id="b" type="number" min="0" max="255" value="0" inputmode="numeric">
+      <div class="slot"><output id="b-out">0</output><input id="b-range" class="range" type="range" min="0" max="255" value="0" aria-label="B 값 드래그"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <button id="submit">완료</button>
+    <button id="next" class="ghost">새 색 뽑기</button>
+  </div>
+
+  <section class="meter">
+    <div class="meter-top">
+      <span>현재 볼륨</span>
+      <span id="hint">아직 소리 없음</span>
+    </div>
+    <div class="value" id="score">00</div>
+    <div class="bar"><i id="fill"></i></div>
+    <p class="note" id="note">완료를 누르면 그때의 점수가 그대로 볼륨이 됩니다.</p>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const targetEl=$('target'), mineEl=$('mine'), gapEl=$('gap');
+  const rEl=$('r'), gEl=$('g'), bEl=$('b');
+  const scoreEl=$('score'), fillEl=$('fill'), noteEl=$('note'), hintEl=$('hint'), roundEl=$('round');
+
+  let target={r:0,g:0,b:0}, volume=0, round=0, counting=false;
+
+  /* ---------- audio ---------- */
+  let ctx=null, master=null, timer=null;
+  const CAP=0.22;
+  const SCALE=[0,3,7,10,12,15,19,22];
+  let step=0;
+
+  function ensureAudio(){
+    if(ctx) return;
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = 0;
+    master.connect(ctx.destination);
+    timer = setInterval(pluck, 240);
+  }
+  function pluck(){
+    if(!ctx || master.gain.value < 0.0005) return;
+    const semi = SCALE[step % SCALE.length];
+    step++;
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type='triangle';
+    osc.frequency.value = 196 * Math.pow(2, semi/12);
+    const t = ctx.currentTime;
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(1, t+0.01);
+    env.gain.exponentialRampToValueAtTime(0.001, t+0.5);
+    osc.connect(env); env.connect(master);
+    osc.start(t); osc.stop(t+0.55);
+  }
+  function setVolume(v){
+    volume = v;
+    if(ctx){
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.linearRampToValueAtTime((v/100)*CAP, ctx.currentTime+0.25);
+    }
+    fillEl.style.width = v + '%';
+    hintEl.textContent = v === 0 ? '아직 소리 없음' : v + ' / 100';
+  }
+
+  /* ---------- color ---------- */
+  const clamp = n => Math.max(0, Math.min(255, isNaN(n) ? 0 : Math.round(n)));
+  const read = () => ({r:clamp(+rEl.value), g:clamp(+gEl.value), b:clamp(+bEl.value)});
+  const css = c => `rgb(${c.r},${c.g},${c.b})`;
+
+  function similarity(a,b){
+    // redmean distance: 눈에 보이는 차이에 가깝게 가중
+    const rm = (a.r + b.r) / 2;
+    const dr = a.r-b.r, dg = a.g-b.g, db = a.b-b.b;
+    const d = Math.sqrt((2 + rm/256)*dr*dr + 4*dg*dg + (2 + (255-rm)/256)*db*db);
+    const dmax = 764.83;
+    return Math.round(100 * Math.pow(Math.max(0, 1 - d/dmax), 4));
+  }
+
+  function newTarget(){
+    round++;
+    roundEl.textContent = '시도 ' + String(round).padStart(2,'0');
+    target = {r:randByte(), g:randByte(), b:randByte()};
+    targetEl.style.background = css(target);
+    gapEl.style.width = '40px';
+    noteEl.textContent = '새 색이 나왔습니다. R·G·B를 채워 넣으세요.';
+  }
+  function randByte(){ return 20 + Math.floor(Math.random()*216); }
+
+  function preview(){
+    mineEl.style.background = css(read());
+  }
+
+  function submit(){
+    if(counting) return;
+    ensureAudio();
+    if(ctx.state === 'suspended') ctx.resume();
+    const mine = read();
+    rEl.value=mine.r; gEl.value=mine.g; bEl.value=mine.b;
+    ranges.r.value=mine.r; ranges.g.value=mine.g; ranges.b.value=mine.b;
+    outs.r.textContent=mine.r; outs.g.textContent=mine.g; outs.b.textContent=mine.b;
+    mineEl.style.background = css(mine);
+    const s = similarity(target, mine);
+    gapEl.style.width = (40 * (1 - s/100)) + 'px';
+    countTo(s);
+  }
+
+  function countTo(final){
+    counting = true;
+    let shown = 0;
+    const stepMs = 18;
+    const tick = setInterval(() => {
+      shown += Math.max(1, Math.ceil((final - shown)/6));
+      if(shown >= final){ shown = final; clearInterval(tick); counting = false; finish(final); }
+      scoreEl.textContent = String(shown).padStart(2,'0');
+      fillEl.style.width = shown + '%';
+    }, stepMs);
+    if(final === 0){ clearInterval(tick); counting=false; scoreEl.textContent='00'; finish(0); }
+  }
+
+  function finish(s){
+    setVolume(s);
+    scoreEl.textContent = String(s).padStart(2,'0');
+    if(s === 100) noteEl.textContent = '정확히 같은 색입니다. 볼륨 100.';
+    else if(s >= 80) noteEl.textContent = '거의 붙었습니다. 이 정도면 충분히 들립니다.';
+    else if(s >= 45) noteEl.textContent = '들리긴 합니다. 조금 더 붙여보세요.';
+    else if(s >= 15) noteEl.textContent = '아주 작게 납니다. 어느 채널이 어긋났는지 보세요.';
+    else noteEl.textContent = '거의 무음입니다. 다시 섞어보세요.';
+  }
+
+  const ranges = {r:$('r-range'), g:$('g-range'), b:$('b-range')};
+  const outs   = {r:$('r-out'),   g:$('g-out'),   b:$('b-out')};
+
+  function sync(){
+    const c = read();
+    rEl.value=c.r; gEl.value=c.g; bEl.value=c.b;
+    ['r','g','b'].forEach(k => { ranges[k].value = c[k]; outs[k].textContent = c[k]; });
+    preview();
+  }
+
+  [rEl,gEl,bEl].forEach(el => {
+    el.addEventListener('input', () => {
+      const c = read();
+      ['r','g','b'].forEach(k => { ranges[k].value = c[k]; outs[k].textContent = c[k]; });
+      preview();
+    });
+    el.addEventListener('blur', sync);
+    el.addEventListener('keydown', e => { if(e.key === 'Enter') submit(); });
+  });
+
+  ['r','g','b'].forEach(k => {
+    ranges[k].addEventListener('input', () => {
+      const v = ranges[k].value;
+      outs[k].textContent = v;
+      ({r:rEl, g:gEl, b:bEl})[k].value = v;
+      preview();
+    });
+  });
+
+  const numBtn = $('mode-num'), dragBtn = $('mode-drag');
+  function setMode(drag){
+    document.body.classList.toggle('drag', drag);
+    numBtn.classList.toggle('on', !drag);
+    dragBtn.classList.toggle('on', drag);
+    numBtn.setAttribute('aria-pressed', String(!drag));
+    dragBtn.setAttribute('aria-pressed', String(drag));
+  }
+  numBtn.addEventListener('click', () => setMode(false));
+  dragBtn.addEventListener('click', () => setMode(true));
+
+  $('submit').addEventListener('click', submit);
+  $('next').addEventListener('click', () => { newTarget(); preview(); });
+
+  newTarget();
+  sync();
+  setVolume(0);
+})();
+</script>
+</body>
+</html>
