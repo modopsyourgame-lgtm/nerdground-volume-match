@@ -19,6 +19,7 @@
     --seam: 40px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none !important}
   html,body{height:100%}
   body{
     background:var(--panel);
@@ -45,6 +46,11 @@
     margin-top:14px;
   }
   .sub{margin-top:8px;color:var(--dim);font-size:14px;line-height:1.5;max-width:38ch}
+  .live-score{margin-top:16px;padding:12px 14px;border:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:center;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.08em}
+  .live-score strong{font-size:24px;letter-spacing:0}
+  .answer{margin-top:12px;padding:14px;border:1.5px solid var(--ink)}
+  .answer-values{display:flex;justify-content:space-between;gap:8px;font-family:"Space Mono",monospace;font-size:18px;font-weight:700;margin-bottom:12px}
+  .answer button{width:100%}
 
   /* the chip */
   .chip{
@@ -147,6 +153,7 @@
 
   <h1>색을 맞춰야<br>소리가 납니다</h1>
   <p class="sub">왼쪽 색과 똑같아지도록 R·G·B 값을 입력하세요. 오른쪽 색이 바로 바뀝니다. 비슷해졌다 싶으면 완료를 누르세요.</p>
+  <div class="live-score" id="live-score" role="status" aria-live="polite" hidden><span>실시간 점수</span><strong id="live-value">00 / 100</strong></div>
 
   <figure class="chip" id="chip">
     <div class="half" id="target"></div>
@@ -183,6 +190,14 @@
     <button id="next" class="ghost">새 색 뽑기</button>
   </div>
   <div class="row">
+    <button id="live-toggle" class="ghost" type="button" aria-pressed="false">실시간 점수보기</button>
+    <button id="answer-toggle" class="ghost" type="button" aria-expanded="false" aria-controls="answer">정답보기</button>
+  </div>
+  <div class="answer" id="answer" hidden>
+    <div class="answer-values"><span id="answer-r">R 0</span><span id="answer-g">G 0</span><span id="answer-b">B 0</span></div>
+    <button id="apply-answer" type="button">대입하기</button>
+  </div>
+  <div class="row">
     <button id="sound" class="ghost" type="button" aria-pressed="false" disabled>소리 5초 듣기</button>
   </div>
 
@@ -204,8 +219,10 @@
   const rEl=$('r'), gEl=$('g'), bEl=$('b');
   const scoreEl=$('score'), fillEl=$('fill'), noteEl=$('note'), hintEl=$('hint'), roundEl=$('round');
   const soundBtn=$('sound');
+  const liveScoreEl=$('live-score'), liveValueEl=$('live-value'), liveToggle=$('live-toggle');
+  const answerEl=$('answer'), answerToggle=$('answer-toggle');
 
-  let target={r:0,g:0,b:0}, volume=0, round=0, counting=false;
+  let target={r:0,g:0,b:0}, volume=0, round=0, counting=false, liveScoreOn=false;
 
   /* ---------- audio ---------- */
   let ctx=null, master=null, timer=null, soundTimer=null, scoreTimer=null, soundPlaying=false;
@@ -295,13 +312,22 @@
     roundEl.textContent = '시도 ' + String(round).padStart(2,'0');
     target = {r:randByte(), g:randByte(), b:randByte()};
     targetEl.style.background = css(target);
+    answerEl.hidden = true;
+    answerToggle.setAttribute('aria-expanded', 'false');
+    answerToggle.textContent = '정답보기';
     gapEl.style.width = '40px';
     noteEl.textContent = '새 색이 나왔습니다. R·G·B를 채워 넣으세요.';
+    updateLiveScore();
   }
   function randByte(){ return 20 + Math.floor(Math.random()*216); }
 
   function preview(){
     mineEl.style.background = css(read());
+    updateLiveScore();
+  }
+
+  function updateLiveScore(){
+    if(liveScoreOn) liveValueEl.textContent = String(similarity(target, read())).padStart(2,'0') + ' / 100';
   }
 
   function submit(){
@@ -395,6 +421,31 @@
   }
   numBtn.addEventListener('click', () => setMode(false));
   dragBtn.addEventListener('click', () => setMode(true));
+
+  liveToggle.addEventListener('click', () => {
+    liveScoreOn = !liveScoreOn;
+    liveScoreEl.hidden = !liveScoreOn;
+    liveToggle.setAttribute('aria-pressed', String(liveScoreOn));
+    liveToggle.textContent = liveScoreOn ? '실시간 점수 숨기기' : '실시간 점수보기';
+    updateLiveScore();
+  });
+  answerToggle.addEventListener('click', () => {
+    const show = answerEl.hidden;
+    answerEl.hidden = !show;
+    answerToggle.setAttribute('aria-expanded', String(show));
+    answerToggle.textContent = show ? '정답 숨기기' : '정답보기';
+    if(show){
+      $('answer-r').textContent = 'R ' + target.r;
+      $('answer-g').textContent = 'G ' + target.g;
+      $('answer-b').textContent = 'B ' + target.b;
+    }
+  });
+  $('apply-answer').addEventListener('click', () => {
+    rEl.value = target.r;
+    gEl.value = target.g;
+    bEl.value = target.b;
+    sync();
+  });
 
   $('submit').addEventListener('click', submit);
   $('next').addEventListener('click', () => { newTarget(); preview(); });
