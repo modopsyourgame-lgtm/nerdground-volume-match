@@ -175,7 +175,7 @@
   <div class="hero">
     <div>
       <h1>색을 맞춰야<br>소리가 납니다</h1>
-      <p class="sub">왼쪽 색과 똑같아지도록 R·G·B 값을 입력하세요. 오른쪽 색이 바로 바뀝니다. 비슷해졌다 싶으면 완료를 누르세요.</p>
+      <p class="sub">왼쪽 색과 똑같아지도록 R·G·B 값을 입력하세요. 오른쪽 색이 바로 바뀝니다. 맞췄다고 생각하면 제출을 누르세요.</p>
     </div>
     <div class="timer-panel"><span class="timer-label">경과 시간</span><strong class="timer-value" id="timer" role="timer" aria-label="경과 시간">00:00</strong></div>
   </div>
@@ -225,7 +225,7 @@
   </div>
 
   <div class="row">
-    <button id="submit">완료</button>
+    <button id="submit" type="button">제출</button>
     <button id="next" class="ghost">새 색 뽑기</button>
   </div>
   <div class="row">
@@ -247,7 +247,7 @@
     </div>
     <div class="value" id="score">00</div>
     <div class="bar"><i id="fill"></i></div>
-    <p class="note" id="note">완료를 누르면 그때의 점수가 그대로 볼륨이 됩니다.</p>
+    <p class="note" id="note" role="status" aria-live="polite">제출하면 점수가 볼륨이 됩니다. 정답이면 타이머가 멈춥니다.</p>
   </section>
 </main>
 
@@ -258,6 +258,7 @@
   const rEl=$('r'), gEl=$('g'), bEl=$('b');
   const scoreEl=$('score'), fillEl=$('fill'), noteEl=$('note'), hintEl=$('hint'), roundEl=$('round');
   const soundBtn=$('sound');
+  const submitBtn=$('submit');
   const liveScoreEl=$('live-score'), liveValueEl=$('live-value'), liveToggle=$('live-toggle');
   const answerEl=$('answer'), answerToggle=$('answer-toggle');
   const timerEl=$('timer');
@@ -265,7 +266,7 @@
   const fields={r:rEl.closest('.field'),g:gEl.closest('.field'),b:bEl.closest('.field')};
   const rulesStatus=$('rules-status');
 
-  let target={r:0,g:0,b:0}, volume=0, round=0, counting=false, liveScoreOn=false;
+  let target={r:0,g:0,b:0}, volume=0, round=0, counting=false, solved=false, liveScoreOn=false;
   let channelModes={r:'play',g:'play',b:'play'};
   let roundStartedAt=0, elapsedMs=0, roundTimer=null;
 
@@ -392,6 +393,8 @@
   function newTarget(){
     if(scoreTimer){ clearInterval(scoreTimer); scoreTimer=null; }
     counting = false;
+    solved = false;
+    submitBtn.disabled = false;
     stopSound();
     setVolume(0);
     scoreEl.textContent = '00';
@@ -420,8 +423,7 @@
   }
 
   function submit(){
-    if(counting) return;
-    stopTimer();
+    if(counting || solved) return;
     stopSound();
     ensureAudio();
     if(ctx.state === 'suspended') ctx.resume();
@@ -429,11 +431,18 @@
     const mine = read();
     mineEl.style.background = css(mine);
     const s = similarity(target, mine);
+    const correct = ['r','g','b'].every(k => mine[k] === target[k]);
+    if(correct){
+      solved = true;
+      submitBtn.disabled = true;
+      ['r','g','b'].forEach(k => { inputs[k].disabled = true; ranges[k].disabled = true; });
+      stopTimer();
+    }
     gapEl.style.width = (40 * (1 - s/100)) + 'px';
-    countTo(s);
+    countTo(s, correct);
   }
 
-  function countTo(final){
+  function countTo(final, correct){
     if(scoreTimer) clearInterval(scoreTimer);
     counting = true;
     let shown = 0;
@@ -445,7 +454,7 @@
         clearInterval(scoreTimer);
         scoreTimer = null;
         counting = false;
-        finish(final);
+        finish(final, correct);
       }
       scoreEl.textContent = String(shown).padStart(2,'0');
       fillEl.style.width = shown + '%';
@@ -455,18 +464,17 @@
       scoreTimer=null;
       counting=false;
       scoreEl.textContent='00';
-      finish(0);
+      finish(0, correct);
     }
   }
 
-  function finish(s){
+  function finish(s, correct){
     setVolume(s);
     scoreEl.textContent = String(s).padStart(2,'0');
-    if(s === 100) noteEl.textContent = '정확히 같은 색입니다. 볼륨 100.';
-    else if(s >= 80) noteEl.textContent = '거의 붙었습니다. 이 정도면 충분히 들립니다.';
-    else if(s >= 45) noteEl.textContent = '들리긴 합니다. 조금 더 붙여보세요.';
-    else if(s >= 15) noteEl.textContent = '아주 작게 납니다. 어느 채널이 어긋났는지 보세요.';
-    else noteEl.textContent = '거의 무음입니다. 다시 섞어보세요.';
+    if(correct) noteEl.textContent = '정답입니다! 시간이 멈췄습니다. 볼륨 100.';
+    else if(s >= 80) noteEl.textContent = '오답입니다. 거의 맞았습니다. 다시 조절해 보세요.';
+    else if(s >= 45) noteEl.textContent = '오답입니다. 값을 더 조절해 보세요.';
+    else noteEl.textContent = '오답입니다. 색을 비교하고 다시 제출해 보세요.';
     if(s > 0) playSoundFor(10000);
   }
 
@@ -548,7 +556,7 @@
     sync();
   });
 
-  $('submit').addEventListener('click', submit);
+  submitBtn.addEventListener('click', submit);
   $('next').addEventListener('click', newTarget);
   soundBtn.addEventListener('click', () => {
     if(soundPlaying) stopSound();
