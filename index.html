@@ -40,6 +40,7 @@
     font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--dim);
   }
+  .header-status{display:flex;gap:16px;align-items:baseline}
   h1{
     font-size:clamp(22px,6.2vw,32px);font-weight:800;
     font-variation-settings:"wdth" 112;letter-spacing:-.02em;line-height:1.05;
@@ -148,7 +149,7 @@
 <main class="sheet">
   <header>
     <span class="eyebrow">Volume&nbsp;/&nbsp;RGB</span>
-    <span class="eyebrow" id="round">시도 00</span>
+    <div class="header-status"><span class="eyebrow" id="timer" role="timer" aria-label="경과 시간">00:00</span><span class="eyebrow" id="round">시도 00</span></div>
   </header>
 
   <h1>색을 맞춰야<br>소리가 납니다</h1>
@@ -221,8 +222,32 @@
   const soundBtn=$('sound');
   const liveScoreEl=$('live-score'), liveValueEl=$('live-value'), liveToggle=$('live-toggle');
   const answerEl=$('answer'), answerToggle=$('answer-toggle');
+  const timerEl=$('timer');
 
   let target={r:0,g:0,b:0}, volume=0, round=0, counting=false, liveScoreOn=false;
+  let roundStartedAt=0, elapsedMs=0, roundTimer=null;
+
+  function updateTimer(){
+    const seconds = Math.floor(elapsedMs / 1000);
+    timerEl.textContent = String(Math.floor(seconds / 60)).padStart(2,'0') + ':' + String(seconds % 60).padStart(2,'0');
+  }
+  function stopTimer(){
+    if(roundTimer === null) return;
+    elapsedMs = performance.now() - roundStartedAt;
+    clearInterval(roundTimer);
+    roundTimer = null;
+    updateTimer();
+  }
+  function startTimer(){
+    stopTimer();
+    elapsedMs = 0;
+    roundStartedAt = performance.now();
+    updateTimer();
+    roundTimer = setInterval(() => {
+      elapsedMs = performance.now() - roundStartedAt;
+      updateTimer();
+    }, 200);
+  }
 
   /* ---------- audio ---------- */
   let ctx=null, master=null, timer=null, soundTimer=null, scoreTimer=null, soundPlaying=false;
@@ -318,6 +343,7 @@
     gapEl.style.width = '40px';
     noteEl.textContent = '새 색이 나왔습니다. R·G·B를 채워 넣으세요.';
     updateLiveScore();
+    startTimer();
   }
   function randByte(){ return 20 + Math.floor(Math.random()*216); }
 
@@ -332,6 +358,7 @@
 
   function submit(){
     if(counting) return;
+    stopTimer();
     stopSound();
     ensureAudio();
     if(ctx.state === 'suspended') ctx.resume();
