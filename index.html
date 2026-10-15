@@ -40,7 +40,10 @@
     font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--dim);
   }
-  .header-status{display:flex;gap:16px;align-items:baseline}
+  .hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:start}
+  .timer-panel{margin-top:14px;border-left:1.5px solid var(--ink);padding-left:16px;text-align:right}
+  .timer-label{display:block;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.14em;color:var(--dim);margin-bottom:10px}
+  .timer-value{display:block;font-family:"Space Mono",monospace;font-size:clamp(42px,8vw,58px);font-weight:700;line-height:1;letter-spacing:-.08em;font-variant-numeric:tabular-nums}
   h1{
     font-size:clamp(22px,6.2vw,32px);font-weight:800;
     font-variation-settings:"wdth" 112;letter-spacing:-.02em;line-height:1.05;
@@ -140,6 +143,11 @@
   .note{
     margin-top:10px;font-size:13px;color:var(--dim);line-height:1.5;min-height:2.6em;
   }
+  @media (max-width:480px){
+    .hero{grid-template-columns:1fr;gap:12px}
+    .timer-panel{margin-top:0;border-left:0;border-top:1.5px solid var(--ink);padding:10px 0 0;display:flex;justify-content:space-between;align-items:center}
+    .timer-label{margin-bottom:0}
+  }
   @media (prefers-reduced-motion:reduce){
     *{transition:none !important}
   }
@@ -149,11 +157,16 @@
 <main class="sheet">
   <header>
     <span class="eyebrow">Volume&nbsp;/&nbsp;RGB</span>
-    <div class="header-status"><span class="eyebrow" id="timer" role="timer" aria-label="경과 시간">00:00</span><span class="eyebrow" id="round">시도 00</span></div>
+    <span class="eyebrow" id="round">시도 00</span>
   </header>
 
-  <h1>색을 맞춰야<br>소리가 납니다</h1>
-  <p class="sub">왼쪽 색과 똑같아지도록 R·G·B 값을 입력하세요. 오른쪽 색이 바로 바뀝니다. 비슷해졌다 싶으면 완료를 누르세요.</p>
+  <div class="hero">
+    <div>
+      <h1>색을 맞춰야<br>소리가 납니다</h1>
+      <p class="sub">왼쪽 색과 똑같아지도록 R·G·B 값을 입력하세요. 오른쪽 색이 바로 바뀝니다. 비슷해졌다 싶으면 완료를 누르세요.</p>
+    </div>
+    <div class="timer-panel"><span class="timer-label">경과 시간</span><strong class="timer-value" id="timer" role="timer" aria-label="경과 시간">00:00</strong></div>
+  </div>
   <div class="live-score" id="live-score" role="status" aria-live="polite" hidden><span>실시간 점수</span><strong id="live-value">00 / 100</strong></div>
 
   <figure class="chip" id="chip">
