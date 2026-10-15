@@ -84,19 +84,17 @@
   .rules{margin-top:16px;border:1.5px solid var(--ink);padding:12px 14px}
   .rules summary{cursor:pointer;font-weight:700;list-style-position:inside}
   .rules p{margin-top:10px;color:var(--dim);font-size:13px;line-height:1.5}
-  .ban-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-  .ban-option{position:relative;cursor:pointer}
-  .ban-option input{position:absolute;opacity:0;width:1px;height:1px}
-  .ban-option span{display:flex;justify-content:space-between;align-items:center;min-height:48px;padding:8px 10px;border:1.5px solid var(--ink);font-family:"Space Mono",monospace;font-weight:700}
-  .ban-option input:checked + span{background:var(--ink);color:var(--panel)}
-  .ban-option input:checked + span::after{content:'✕';font-size:28px;line-height:1}
-  .ban-option input:focus-visible + span{outline:3px solid var(--ink);outline-offset:3px}
+  .channel-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .channel-option{display:block;font-family:"Space Mono",monospace;font-size:12px;font-weight:700}
+  .channel-option select{display:block;width:100%;margin-top:6px;padding:10px 6px;border:1.5px solid var(--ink);border-radius:0;background:var(--panel-2);color:var(--ink);font:inherit}
+  .channel-option select:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
   .rules-status{min-height:1.5em}
 
   .mixer{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .field{position:relative}
   .ban-mark{display:none;position:absolute;inset:20px 0 0;align-items:center;justify-content:center;background:var(--panel-2);border:1.5px solid var(--ink);font-family:"Space Mono",monospace;font-size:64px;line-height:1;pointer-events:none}
   .field.is-banned .ban-mark{display:flex}
+  .field.is-locked .ban-mark{display:flex;background:var(--ink);color:var(--panel);font-size:18px;letter-spacing:.12em}
   .field label{
     display:block;font-family:"Space Mono",monospace;font-size:11px;
     letter-spacing:.14em;color:var(--dim);margin-bottom:6px;
@@ -195,14 +193,14 @@
     <button type="button" class="mode" id="mode-drag" aria-pressed="false">드래그</button>
   </div>
   <details class="rules">
-    <summary>RGB 금지 설정</summary>
-    <p>금지할 채널을 고르세요. 다음 ‘새 색 뽑기’부터 목표값과 입력값이 0으로 고정됩니다. 최소 한 채널은 남겨야 합니다.</p>
-    <div class="ban-options" role="group" aria-label="다음 색에서 금지할 채널">
-      <label class="ban-option"><input id="ban-r" type="checkbox"><span>R</span></label>
-      <label class="ban-option"><input id="ban-g" type="checkbox"><span>G</span></label>
-      <label class="ban-option"><input id="ban-b" type="checkbox"><span>B</span></label>
+    <summary>RGB 채널 설정</summary>
+    <p>채널마다 사용, 0으로 금지, 정답값 잠금 중 고르세요. 다음 ‘새 색 뽑기’부터 적용됩니다. 잠근 값은 정답보기 전까지 표시되지 않습니다.</p>
+    <div class="channel-options" role="group" aria-label="다음 색의 채널 설정">
+      <label class="channel-option" for="mode-r">R<select id="mode-r"><option value="play">사용</option><option value="zero">0 금지</option><option value="lock">정답 잠금</option></select></label>
+      <label class="channel-option" for="mode-g">G<select id="mode-g"><option value="play">사용</option><option value="zero">0 금지</option><option value="lock">정답 잠금</option></select></label>
+      <label class="channel-option" for="mode-b">B<select id="mode-b"><option value="play">사용</option><option value="zero">0 금지</option><option value="lock">정답 잠금</option></select></label>
     </div>
-    <p class="rules-status" id="rules-status" role="status">현재 라운드: 금지 없음</p>
+    <p class="rules-status" id="rules-status" role="status">현재 라운드: 모두 사용</p>
   </details>
 
   <div class="mixer" id="mixer">
@@ -263,12 +261,12 @@
   const liveScoreEl=$('live-score'), liveValueEl=$('live-value'), liveToggle=$('live-toggle');
   const answerEl=$('answer'), answerToggle=$('answer-toggle');
   const timerEl=$('timer');
-  const banChoices={r:$('ban-r'),g:$('ban-g'),b:$('ban-b')};
+  const modeChoices={r:$('mode-r'),g:$('mode-g'),b:$('mode-b')};
   const fields={r:rEl.closest('.field'),g:gEl.closest('.field'),b:bEl.closest('.field')};
   const rulesStatus=$('rules-status');
 
   let target={r:0,g:0,b:0}, volume=0, round=0, counting=false, liveScoreOn=false;
-  let active={r:true,g:true,b:true};
+  let channelModes={r:'play',g:'play',b:'play'};
   let roundStartedAt=0, elapsedMs=0, roundTimer=null;
 
   function updateTimer(){
@@ -359,32 +357,36 @@
 
   /* ---------- color ---------- */
   const clamp = n => Math.max(0, Math.min(255, isNaN(n) ? 0 : Math.round(n)));
-  const read = () => ({r:active.r ? clamp(+rEl.value) : 0, g:active.g ? clamp(+gEl.value) : 0, b:active.b ? clamp(+bEl.value) : 0});
+  const inputs={r:rEl,g:gEl,b:bEl};
+  const read = () => Object.fromEntries(['r','g','b'].map(k => [k, channelModes[k] === 'lock' ? target[k] : channelModes[k] === 'zero' ? 0 : clamp(+inputs[k].value)]));
   const css = c => `rgb(${c.r},${c.g},${c.b})`;
 
   function similarity(a,b){
     // redmean distance: 눈에 보이는 차이에 가깝게 가중
     const rm = (a.r + b.r) / 2;
     const dr = a.r-b.r, dg = a.g-b.g, db = a.b-b.b;
-    const redWeight = active.r ? 2 + rm/256 : 0;
-    const greenWeight = active.g ? 4 : 0;
-    const blueWeight = active.b ? 2 + (255-rm)/256 : 0;
+    const redWeight = channelModes.r === 'play' ? 2 + rm/256 : 0;
+    const greenWeight = channelModes.g === 'play' ? 4 : 0;
+    const blueWeight = channelModes.b === 'play' ? 2 + (255-rm)/256 : 0;
     const d = Math.sqrt(redWeight*dr*dr + greenWeight*dg*dg + blueWeight*db*db);
     const dmax = 255 * Math.sqrt(redWeight + greenWeight + blueWeight);
     return Math.round(100 * Math.pow(Math.max(0, 1 - d/dmax), 4));
   }
 
-  function applyBans(){
-    const names=[];
+  function applyModes(){
+    const descriptions=[];
     ['r','g','b'].forEach(k => {
-      active[k] = !banChoices[k].checked;
-      if(!active[k]) names.push(k.toUpperCase());
-      fields[k].classList.toggle('is-banned', !active[k]);
-      ({r:rEl,g:gEl,b:bEl})[k].disabled = !active[k];
-      ranges[k].disabled = !active[k];
-      if(!active[k]) ({r:rEl,g:gEl,b:bEl})[k].value = 0;
+      const mode = modeChoices[k].value;
+      channelModes[k] = mode;
+      fields[k].classList.toggle('is-banned', mode === 'zero');
+      fields[k].classList.toggle('is-locked', mode === 'lock');
+      fields[k].querySelector('.ban-mark').textContent = mode === 'lock' ? '잠금' : '×';
+      inputs[k].disabled = mode !== 'play';
+      ranges[k].disabled = mode !== 'play';
+      if(mode !== 'play') inputs[k].value = 0;
+      if(mode !== 'play') descriptions.push(k.toUpperCase() + (mode === 'zero' ? ' 0 금지' : ' 정답 잠금'));
     });
-    rulesStatus.textContent = '현재 라운드: ' + (names.length ? names.join('·') + ' 금지' : '금지 없음');
+    rulesStatus.textContent = '현재 라운드: ' + (descriptions.length ? descriptions.join(', ') : '모두 사용');
   }
 
   function newTarget(){
@@ -395,15 +397,15 @@
     scoreEl.textContent = '00';
     round++;
     roundEl.textContent = '시도 ' + String(round).padStart(2,'0');
-    applyBans();
-    target = {r:active.r ? randByte() : 0, g:active.g ? randByte() : 0, b:active.b ? randByte() : 0};
+    applyModes();
+    target = {r:channelModes.r === 'zero' ? 0 : randByte(), g:channelModes.g === 'zero' ? 0 : randByte(), b:channelModes.b === 'zero' ? 0 : randByte()};
     targetEl.style.background = css(target);
     sync();
     answerEl.hidden = true;
     answerToggle.setAttribute('aria-expanded', 'false');
     answerToggle.textContent = '정답보기';
     gapEl.style.width = '40px';
-    noteEl.textContent = '새 색이 나왔습니다. ' + ['r','g','b'].filter(k => active[k]).map(k => k.toUpperCase()).join('·') + ' 값을 맞추세요.';
+    noteEl.textContent = '새 색이 나왔습니다. ' + ['r','g','b'].filter(k => channelModes[k] === 'play').map(k => k.toUpperCase()).join('·') + ' 값을 맞추세요.';
     startTimer();
   }
   function randByte(){ return 20 + Math.floor(Math.random()*216); }
@@ -423,10 +425,8 @@
     stopSound();
     ensureAudio();
     if(ctx.state === 'suspended') ctx.resume();
+    sync();
     const mine = read();
-    rEl.value=mine.r; gEl.value=mine.g; bEl.value=mine.b;
-    ranges.r.value=mine.r; ranges.g.value=mine.g; ranges.b.value=mine.b;
-    outs.r.textContent=mine.r; outs.g.textContent=mine.g; outs.b.textContent=mine.b;
     mineEl.style.background = css(mine);
     const s = similarity(target, mine);
     gapEl.style.width = (40 * (1 - s/100)) + 'px';
@@ -473,26 +473,32 @@
   const ranges = {r:$('r-range'), g:$('g-range'), b:$('b-range')};
   const outs   = {r:$('r-out'),   g:$('g-out'),   b:$('b-out')};
 
-  ['r','g','b'].forEach(k => banChoices[k].addEventListener('change', () => {
-    if(['r','g','b'].every(channel => banChoices[channel].checked)){
-      banChoices[k].checked = false;
-      rulesStatus.textContent = '최소 한 채널은 남겨야 합니다.';
+  ['r','g','b'].forEach(k => modeChoices[k].addEventListener('change', () => {
+    if(['r','g','b'].every(channel => modeChoices[channel].value !== 'play')){
+      modeChoices[k].value = 'play';
+      rulesStatus.textContent = '최소 한 채널은 사용해야 합니다.';
     } else {
-      rulesStatus.textContent = '다음 새 색부터 선택한 금지가 적용됩니다.';
+      rulesStatus.textContent = '다음 새 색부터 선택한 설정이 적용됩니다.';
     }
   }));
 
   function sync(){
-    const c = read();
-    rEl.value=c.r; gEl.value=c.g; bEl.value=c.b;
-    ['r','g','b'].forEach(k => { ranges[k].value = c[k]; outs[k].textContent = c[k]; });
+    ['r','g','b'].forEach(k => {
+      const v = channelModes[k] === 'play' ? clamp(+inputs[k].value) : 0;
+      inputs[k].value = v;
+      ranges[k].value = v;
+      outs[k].textContent = channelModes[k] === 'lock' ? '—' : v;
+    });
     preview();
   }
 
   [rEl,gEl,bEl].forEach(el => {
     el.addEventListener('input', () => {
-      const c = read();
-      ['r','g','b'].forEach(k => { ranges[k].value = c[k]; outs[k].textContent = c[k]; });
+      ['r','g','b'].forEach(k => {
+        const v = channelModes[k] === 'play' ? clamp(+inputs[k].value) : 0;
+        ranges[k].value = v;
+        outs[k].textContent = channelModes[k] === 'lock' ? '—' : v;
+      });
       preview();
     });
     el.addEventListener('blur', sync);
@@ -538,9 +544,7 @@
     }
   });
   $('apply-answer').addEventListener('click', () => {
-    rEl.value = target.r;
-    gEl.value = target.g;
-    bEl.value = target.b;
+    ['r','g','b'].forEach(k => { if(channelModes[k] === 'play') inputs[k].value = target[k]; });
     sync();
   });
 
